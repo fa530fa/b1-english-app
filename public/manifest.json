@@ -1,0 +1,17 @@
+{
+  "name": "B1 英語口試練習",
+  "short_name": "B1 練習",
+  "description": "英語口試問答卡片練習工具",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF6F1",
+  "theme_color": "#FAF6F1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
