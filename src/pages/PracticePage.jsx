@@ -203,15 +203,20 @@ export default function PracticePage() {
 
   return (
     <div className="px-4 pt-6 pb-24">
-      {/* Header + Controls */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <BookOpen size={22} className="text-accent" />
+      {/* Header + Progress */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
           <h1 className="text-xl font-bold font-serif text-ink">練習</h1>
+          <span className="text-sm font-chinese text-ink-light">
+            {currentIndex + 1} / {cards.length}
+          </span>
         </div>
-        <span className="text-sm font-chinese text-ink-light">
-          第 {currentIndex + 1}/{cards.length} 題
-        </span>
+        <div className="h-1 bg-cream-dark/60 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-accent rounded-full transition-all duration-300"
+            style={{ width: `${((currentIndex + 1) / cards.length) * 100}%` }}
+          />
+        </div>
       </div>
 
       {/* Filters */}
@@ -277,45 +282,48 @@ export default function PracticePage() {
       {currentCard && (
         <div className="bg-surface rounded-2xl shadow-warm border border-cream-dark/40 overflow-hidden">
           {/* Question */}
-          <div className="p-5 border-b border-cream-dark/40">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-chinese font-medium text-accent bg-accent-light px-2 py-1 rounded-lg">
+          <div className="p-5 md:p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-chinese font-medium text-accent bg-accent-light px-2.5 py-1 rounded-lg">
                 問題
               </span>
               <SpeakButton text={currentCard.question_en} size="lg" />
             </div>
-            <div className="text-xl leading-relaxed text-ink">
+            <div className="text-xl md:text-2xl leading-relaxed text-ink">
               <WordTapOverlay text={currentCard.question_en} />
             </div>
             {showZh && currentCard.question_zh && (
-              <p className="text-base font-chinese text-ink-light mt-2 leading-relaxed">
+              <p className="text-base font-chinese text-ink-light mt-3 leading-relaxed">
                 {currentCard.question_zh}
               </p>
             )}
           </div>
 
+          {/* Divider */}
+          <div className="mx-5 h-px bg-cream-dark/40" />
+
           {/* Answer (tap to reveal) */}
           {!showAnswer ? (
             <button
               onClick={() => setShowAnswer(true)}
-              className="w-full p-6 text-center font-chinese text-accent text-lg hover:bg-accent-light/30 transition-colors flex items-center justify-center gap-2"
+              className="w-full p-6 text-center font-chinese text-accent text-lg hover:bg-accent-light/40 transition-colors flex items-center justify-center gap-2"
             >
               點擊顯示答案
               <ChevronDown size={20} className="animate-bounce-subtle" />
             </button>
           ) : (
-            <div className="p-5 animate-fade-in-up">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-chinese font-medium text-secondary bg-secondary-light px-2 py-1 rounded-lg">
+            <div className="p-5 md:p-6 bg-accent-light/20 animate-fade-in-up">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-chinese font-medium text-secondary bg-secondary-light px-2.5 py-1 rounded-lg">
                   答案
                 </span>
                 <SpeakButton text={currentCard.answer_en} size="lg" />
               </div>
-              <div className="text-xl leading-relaxed text-ink">
+              <div className="text-xl md:text-2xl leading-relaxed text-ink">
                 <WordTapOverlay text={currentCard.answer_en} />
               </div>
               {showZh && currentCard.answer_zh && (
-                <p className="text-base font-chinese text-ink-light mt-2 leading-relaxed">
+                <p className="text-base font-chinese text-ink-light mt-3 leading-relaxed">
                   {currentCard.answer_zh}
                 </p>
               )}

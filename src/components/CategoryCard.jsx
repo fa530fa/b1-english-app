@@ -13,8 +13,8 @@ export default function CategoryCard({ category, cardCount, style }) {
         <div
           className="w-4 h-4 rounded-full shrink-0"
           style={{
-            backgroundColor: category.color || '#2A7C7C',
-            boxShadow: `0 0 8px ${category.color || '#2A7C7C'}30`,
+            backgroundColor: category.color || '#4E7C5F',
+            boxShadow: `0 0 8px ${category.color || '#4E7C5F'}30`,
           }}
         />
         <span className="font-chinese font-bold text-lg text-ink truncate">

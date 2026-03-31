@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  /* Warm Notebook palette */
-  --color-cream: #FAF6F1;
-  --color-cream-dark: #EDE5D8;
-  --color-surface: #FFFCF8;
-  --color-ink: #3D3229;
-  --color-ink-light: #7A6E62;
-  --color-ink-faint: #B5A99A;
-  --color-accent: #2A7C7C;
-  --color-accent-dark: #1E5E5E;
-  --color-accent-light: #E6F2F2;
-  --color-secondary: #C4956A;
-  --color-secondary-light: #FBF0E6;
-  --color-success: #3D8B5E;
-  --color-danger: #C4453A;
-  --color-danger-dark: #A3362D;
+  /* Warm Honey Study palette */
+  --color-cream: #F5F0E8;
+  --color-cream-dark: #E3D9CB;
+  --color-surface: #FFFFFF;
+  --color-ink: #2A2420;
+  --color-ink-light: #6B5E52;
+  --color-ink-faint: #A89888;
+  --color-accent: #4E7C5F;
+  --color-accent-dark: #3D6349;
+  --color-accent-light: #E8F0EB;
+  --color-secondary: #C4903A;
+  --color-secondary-light: #FDF3E1;
+  --color-success: #4E7C5F;
+  --color-danger: #C0453A;
+  --color-danger-dark: #A03830;
   --color-danger-light: #FCEAE8;
   --color-star: #D4963A;
 
@@ -165,18 +165,18 @@ button, a, [role="button"] {
   }
 }
 
-/* Warm shadows */
+/* Warm shadows — deeper for white cards on cream bg */
 .shadow-warm-sm {
-  box-shadow: 0 1px 3px rgba(61, 50, 41, 0.06);
+  box-shadow: 0 1px 4px rgba(42, 36, 32, 0.07), 0 0 1px rgba(42, 36, 32, 0.04);
 }
 .shadow-warm {
-  box-shadow: 0 4px 12px rgba(61, 50, 41, 0.08);
+  box-shadow: 0 4px 16px rgba(42, 36, 32, 0.09), 0 1px 3px rgba(42, 36, 32, 0.05);
 }
 .shadow-warm-lg {
-  box-shadow: 0 8px 24px rgba(61, 50, 41, 0.1);
+  box-shadow: 0 8px 28px rgba(42, 36, 32, 0.12), 0 2px 6px rgba(42, 36, 32, 0.06);
 }
 .shadow-warm-up {
-  box-shadow: 0 -2px 12px rgba(61, 50, 41, 0.06);
+  box-shadow: 0 -2px 16px rgba(42, 36, 32, 0.07);
 }
 
 /* Focus visible */

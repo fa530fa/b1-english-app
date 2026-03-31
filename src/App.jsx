@@ -18,16 +18,16 @@ function ProfilePicker({ onSelect }) {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center px-6 bg-cream animate-fade-in">
       <div className="w-full max-w-sm text-center">
-        <div className="w-16 h-16 rounded-2xl bg-accent-light flex items-center justify-center mx-auto mb-5">
-          <Library size={32} className="text-accent" />
+        <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center mx-auto mb-6 shadow-warm">
+          <Library size={36} className="text-white" />
         </div>
-        <h1 className="text-3xl font-bold text-ink mb-2 font-serif">
+        <h1 className="text-3xl font-bold text-ink mb-1.5 font-serif">
           B1 口試練習
         </h1>
-        <p className="text-ink-light font-chinese text-base mb-10">
+        <p className="text-ink-faint font-chinese text-base mb-10">
           請選擇使用者
         </p>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {PROFILES.map((p, i) => (
             <button
               key={p.id}
@@ -35,10 +35,15 @@ function ProfilePicker({ onSelect }) {
                 setProfile(p.id)
                 onSelect()
               }}
-              className="w-full py-5 px-6 bg-surface rounded-2xl shadow-warm-sm border border-cream-dark/40 hover:shadow-warm transition-all text-left press-scale animate-fade-in-up border-l-4 border-l-accent"
-              style={{ animationDelay: `${i * 80}ms` }}
+              className="w-full py-5 px-6 bg-surface rounded-2xl shadow-warm border border-cream-dark/40 hover:shadow-warm-lg transition-all text-left press-scale animate-fade-in-up"
+              style={{ animationDelay: `${i * 100}ms` }}
             >
-              <p className="font-bold text-xl text-ink">{p.name}</p>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-accent-light flex items-center justify-center shrink-0">
+                  <span className="text-accent font-bold text-lg">{p.name[0]}</span>
+                </div>
+                <p className="font-bold text-lg text-ink">{p.name}</p>
+              </div>
             </button>
           ))}
         </div>

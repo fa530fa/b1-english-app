@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Library, Sparkles, Printer } from 'lucide-react'
+import { Library, Sparkles, Printer, BookOpen, BookA } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile, getProfileName } from '../lib/profile'
 import CategoryCard from '../components/CategoryCard'
 import LoadingSpinner from '../components/LoadingSpinner'
+
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return '早安'
+  if (h < 18) return '午安'
+  return '晚安'
+}
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -48,57 +55,94 @@ export default function HomePage() {
 
   return (
     <div className="px-4 pt-6 pb-24">
-      <div className="flex items-center gap-3 mb-6 animate-fade-in-up">
-        <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center">
-          <Library size={20} className="text-accent" />
+      {/* Greeting header */}
+      <div className="mb-6 animate-fade-in-up">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-chinese text-ink-light">{getGreeting()}，</p>
+            <h1 className="text-2xl font-bold text-ink font-serif">{getProfileName()}</h1>
+          </div>
+          <button
+            onClick={() => navigate('/print')}
+            className="p-2.5 hover:bg-cream-dark/50 rounded-xl transition-colors press-scale"
+            aria-label="列印卡片"
+          >
+            <Printer size={20} className="text-ink-faint" />
+          </button>
         </div>
-        <h1 className="text-2xl font-bold text-ink flex-1">
-          <span className="font-serif">{getProfileName()}</span>
-          <span className="font-chinese text-lg text-ink-light ml-1.5">的卡片</span>
-        </h1>
+      </div>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 gap-3 mb-5 animate-fade-in-up" style={{ animationDelay: '60ms' }}>
         <button
-          onClick={() => navigate('/print')}
-          className="p-2.5 hover:bg-accent-light rounded-xl transition-colors press-scale"
-          aria-label="列印卡片"
+          onClick={() => navigate('/practice')}
+          className="bg-surface rounded-2xl p-4 shadow-warm-sm border border-cream-dark/30 text-left press-scale hover:shadow-warm transition-all flex items-center gap-3"
         >
-          <Printer size={20} className="text-ink-light" />
+          <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center shrink-0">
+            <BookOpen size={20} className="text-accent" />
+          </div>
+          <div>
+            <p className="font-chinese font-bold text-sm text-ink">練習模式</p>
+            <p className="text-xs font-chinese text-ink-faint">{totalCards} 題</p>
+          </div>
+        </button>
+        <button
+          onClick={() => navigate('/vocab')}
+          className="bg-surface rounded-2xl p-4 shadow-warm-sm border border-cream-dark/30 text-left press-scale hover:shadow-warm transition-all flex items-center gap-3"
+        >
+          <div className="w-10 h-10 rounded-xl bg-secondary-light flex items-center justify-center shrink-0">
+            <BookA size={20} className="text-secondary" />
+          </div>
+          <div>
+            <p className="font-chinese font-bold text-sm text-ink">生字簿</p>
+            <p className="text-xs font-chinese text-ink-faint">每日練習</p>
+          </div>
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-        <button
-          onClick={() => navigate('/category/all')}
-          className="bg-gradient-to-br from-accent to-accent-dark text-white rounded-2xl p-5 shadow-warm hover:shadow-warm-lg transition-all text-left col-span-2 md:col-span-3 press-scale animate-fade-in-up"
-        >
-          <span className="font-chinese font-bold text-lg">全部卡片</span>
-          <p className="text-white/80 text-sm font-chinese mt-1">
-            {totalCards} 張卡片
-          </p>
-        </button>
+      {/* All cards banner */}
+      <button
+        onClick={() => navigate('/category/all')}
+        className="w-full bg-gradient-to-br from-accent to-accent-dark text-white rounded-2xl p-5 shadow-warm hover:shadow-warm-lg transition-all text-left press-scale animate-fade-in-up mb-4"
+        style={{ animationDelay: '120ms' }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="font-chinese font-bold text-lg">全部卡片</span>
+            <p className="text-white/75 text-sm font-chinese mt-0.5">
+              {totalCards} 張卡片 · {categories.length} 個分類
+            </p>
+          </div>
+          <Library size={28} className="text-white/30" />
+        </div>
+      </button>
 
-        {categories.map((cat, i) => (
-          <CategoryCard
-            key={cat.id}
-            category={cat}
-            cardCount={cardCounts[cat.id] || 0}
-            style={{ animationDelay: `${(i + 1) * 60}ms` }}
-          />
-        ))}
-      </div>
+      {/* Category grid */}
+      {categories.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+          {categories.map((cat, i) => (
+            <CategoryCard
+              key={cat.id}
+              category={cat}
+              cardCount={cardCounts[cat.id] || 0}
+              style={{ animationDelay: `${(i + 2) * 60}ms` }}
+            />
+          ))}
+        </div>
+      )}
 
       {categories.length === 0 && totalCards === 0 && (
         <div className="text-center py-12 animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary-light flex items-center justify-center mx-auto mb-4">
             <Sparkles size={28} className="text-secondary" />
           </div>
-          <p className="text-ink-light font-chinese text-lg mb-4">
-            還沒有卡片
-          </p>
+          <p className="text-ink-light font-chinese text-lg mb-1">還沒有卡片</p>
+          <p className="text-ink-faint font-chinese text-sm mb-5">匯入你的第一套口試練習</p>
           <button
-            onClick={() => navigate('/add')}
+            onClick={() => navigate('/import')}
             className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-white font-chinese font-bold rounded-xl shadow-warm hover:shadow-warm-lg transition-all press-scale"
           >
-            新增第一張卡片
+            開始匯入
           </button>
         </div>
       )}
