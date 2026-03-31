@@ -129,6 +129,15 @@ export default function CardFormPage() {
         </h1>
       </div>
 
+      {!isEdit && (
+        <button
+          onClick={() => navigate('/import')}
+          className="w-full mb-5 py-3 px-4 bg-accent-light text-accent rounded-xl font-chinese text-sm font-medium hover:bg-accent/10 transition-colors press-scale text-center"
+        >
+          有很多題目？批量匯入 →
+        </button>
+      )}
+
       <form onSubmit={handleSave} className="space-y-5">
         <div>
           <label className="block text-sm font-serif font-semibold text-ink mb-1.5">

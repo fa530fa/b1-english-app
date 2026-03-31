@@ -7,7 +7,11 @@ import CategoryPage from './pages/CategoryPage'
 import CardFormPage from './pages/CardFormPage'
 import CardDetailPage from './pages/CardDetailPage'
 import PracticePage from './pages/PracticePage'
+import BulkImportPage from './pages/BulkImportPage'
 import SettingsPage from './pages/SettingsPage'
+import PrintPage from './pages/PrintPage'
+import VocabPage from './pages/VocabPage'
+import VocabPracticePage from './pages/VocabPracticePage'
 import { PROFILES, hasProfile, setProfile } from './lib/profile'
 
 function ProfilePicker({ onSelect }) {
@@ -58,7 +62,11 @@ export default function App() {
         <Route path="add" element={<CardFormPage />} />
         <Route path="edit/:id" element={<CardFormPage />} />
         <Route path="card/:id" element={<CardDetailPage />} />
+        <Route path="import" element={<BulkImportPage />} />
         <Route path="practice" element={<PracticePage />} />
+        <Route path="print" element={<PrintPage />} />
+        <Route path="vocab" element={<VocabPage />} />
+        <Route path="vocab/practice" element={<VocabPracticePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

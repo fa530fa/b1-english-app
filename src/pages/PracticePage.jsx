@@ -1,13 +1,15 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { BookOpen, Shuffle, Volume2, ChevronDown, ChevronLeft, ChevronRight, Radio } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import { getSetting } from '../lib/settings'
-import { speak, stopSpeaking } from '../lib/tts'
+import { speak, stopSpeaking, speakWithCallback, getRate } from '../lib/tts'
 import SpeakButton from '../components/SpeakButton'
 import WordTapOverlay from '../components/WordTapOverlay'
+import BroadcastBar from '../components/BroadcastBar'
 import LoadingSpinner from '../components/LoadingSpinner'
 
-function shuffle(arr) {
+function shuffleArray(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -27,6 +29,16 @@ export default function PracticePage() {
   const [autoSpeak, setAutoSpeak] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Broadcast state
+  const [broadcasting, setBroadcasting] = useState(false)
+  const [broadcastPaused, setBroadcastPaused] = useState(false)
+  const [broadcastIndex, setBroadcastIndex] = useState(0)
+  const [broadcastPhase, setBroadcastPhase] = useState('question')
+  const [broadcastDone, setBroadcastDone] = useState(false)
+  const cleanupRef = useRef(null)
+  const gapTimerRef = useRef(null)
+  const broadcastActiveRef = useRef(false)
+
   useEffect(() => {
     loadCategories()
   }, [])
@@ -34,6 +46,13 @@ export default function PracticePage() {
   useEffect(() => {
     loadCards()
   }, [filterId, isShuffled])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopBroadcast()
+    }
+  }, [])
 
   async function loadCategories() {
     const { data } = await supabase
@@ -58,17 +77,20 @@ export default function PracticePage() {
 
     const { data } = await query
     let result = data || []
-    if (isShuffled) result = shuffle(result)
+    if (isShuffled) result = shuffleArray(result)
     setCards(result)
     setCurrentIndex(0)
     setShowAnswer(false)
     setLoading(false)
+    // Stop broadcast if cards change
+    if (broadcasting) stopBroadcast()
   }
 
   const currentCard = cards[currentIndex]
 
   const goTo = useCallback(
     (direction) => {
+      if (broadcasting) return
       stopSpeaking()
       const next = currentIndex + direction
       if (next >= 0 && next < cards.length) {
@@ -79,23 +101,99 @@ export default function PracticePage() {
         }
       }
     },
-    [currentIndex, cards, autoSpeak]
+    [currentIndex, cards, autoSpeak, broadcasting]
   )
 
   useEffect(() => {
-    if (autoSpeak && currentCard) {
+    if (autoSpeak && currentCard && !broadcasting) {
       speak(currentCard.question_en)
     }
   }, [currentIndex, autoSpeak])
+
+  // ── Broadcast logic ──
+
+  function startBroadcast() {
+    stopSpeaking()
+    setBroadcasting(true)
+    setBroadcastPaused(false)
+    setBroadcastDone(false)
+    setBroadcastIndex(0)
+    setBroadcastPhase('question')
+    setCurrentIndex(0)
+    setShowAnswer(false)
+    broadcastActiveRef.current = true
+    broadcastStep(0, 'question')
+  }
+
+  function stopBroadcast() {
+    broadcastActiveRef.current = false
+    stopSpeaking()
+    clearTimeout(gapTimerRef.current)
+    if (cleanupRef.current) cleanupRef.current()
+    setBroadcasting(false)
+    setBroadcastPaused(false)
+    setBroadcastDone(false)
+  }
+
+  function toggleBroadcastPause() {
+    if (broadcastPaused) {
+      // Resume
+      setBroadcastPaused(false)
+      broadcastActiveRef.current = true
+      broadcastStep(broadcastIndex, broadcastPhase)
+    } else {
+      // Pause
+      broadcastActiveRef.current = false
+      stopSpeaking()
+      clearTimeout(gapTimerRef.current)
+      if (cleanupRef.current) cleanupRef.current()
+      setBroadcastPaused(true)
+    }
+  }
+
+  function broadcastStep(idx, phase) {
+    if (!broadcastActiveRef.current) return
+    if (idx >= cards.length) {
+      setBroadcastDone(true)
+      stopBroadcast()
+      return
+    }
+
+    const card = cards[idx]
+    setBroadcastIndex(idx)
+    setBroadcastPhase(phase)
+    setCurrentIndex(idx)
+
+    if (phase === 'question') {
+      setShowAnswer(false)
+      cleanupRef.current = speakWithCallback(card.question_en, getRate(), () => {
+        if (!broadcastActiveRef.current) return
+        setBroadcastPhase('gap-q')
+        gapTimerRef.current = setTimeout(() => {
+          broadcastStep(idx, 'answer')
+        }, 1500)
+      })
+    } else if (phase === 'answer') {
+      setShowAnswer(true)
+      cleanupRef.current = speakWithCallback(card.answer_en, getRate(), () => {
+        if (!broadcastActiveRef.current) return
+        setBroadcastPhase('gap-a')
+        gapTimerRef.current = setTimeout(() => {
+          broadcastStep(idx + 1, 'question')
+        }, 2000)
+      })
+    }
+  }
 
   if (loading) return <LoadingSpinner />
 
   if (cards.length === 0) {
     return (
-      <div className="px-4 pt-6 pb-24 text-center">
-        <h1 className="text-xl font-bold font-chinese text-ink mb-6">
-          📖 練習模式
-        </h1>
+      <div className="px-4 pt-6 pb-24 text-center animate-fade-in">
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <BookOpen size={24} className="text-accent" />
+          <h1 className="text-xl font-bold font-serif text-ink">練習模式</h1>
+        </div>
         <p className="text-ink-light font-chinese text-lg py-12">
           {filterId ? '此分類暫無卡片' : '還沒有卡片可以練習'}
         </p>
@@ -107,7 +205,10 @@ export default function PracticePage() {
     <div className="px-4 pt-6 pb-24">
       {/* Header + Controls */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold font-chinese text-ink">📖 練習</h1>
+        <div className="flex items-center gap-2">
+          <BookOpen size={22} className="text-accent" />
+          <h1 className="text-xl font-bold font-serif text-ink">練習</h1>
+        </div>
         <span className="text-sm font-chinese text-ink-light">
           第 {currentIndex + 1}/{cards.length} 題
         </span>
@@ -118,7 +219,7 @@ export default function PracticePage() {
         <select
           value={filterId}
           onChange={(e) => setFilterId(e.target.value)}
-          className="px-3 py-2 text-sm rounded-xl border border-cream-dark bg-white font-chinese"
+          className="px-3 py-2 text-sm rounded-xl border border-cream-dark/60 bg-surface font-chinese shadow-warm-sm"
         >
           <option value="">全部分類</option>
           {categories.map((cat) => (
@@ -129,43 +230,56 @@ export default function PracticePage() {
         </select>
         <button
           onClick={() => setIsShuffled(!isShuffled)}
-          className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors ${
+          className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors flex items-center gap-1.5 ${
             isShuffled
               ? 'bg-accent text-white border-accent'
-              : 'bg-white border-cream-dark text-ink-light'
+              : 'bg-surface border-cream-dark/60 text-ink-light'
           }`}
         >
-          🔀 隨機
+          <Shuffle size={14} />
+          隨機
         </button>
         <button
           onClick={() => setAutoSpeak(!autoSpeak)}
-          className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors ${
+          className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors flex items-center gap-1.5 ${
             autoSpeak
               ? 'bg-accent text-white border-accent'
-              : 'bg-white border-cream-dark text-ink-light'
+              : 'bg-surface border-cream-dark/60 text-ink-light'
           }`}
         >
-          🔊 自動朗讀
+          <Volume2 size={14} />
+          自動朗讀
         </button>
         <button
           onClick={() => setShowZh(!showZh)}
           className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors ${
             showZh
               ? 'bg-accent text-white border-accent'
-              : 'bg-white border-cream-dark text-ink-light'
+              : 'bg-surface border-cream-dark/60 text-ink-light'
           }`}
         >
           中 中文
+        </button>
+        <button
+          onClick={() => (broadcasting ? stopBroadcast() : startBroadcast())}
+          className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors flex items-center gap-1.5 ${
+            broadcasting
+              ? 'bg-accent text-white border-accent'
+              : 'bg-surface border-cream-dark/60 text-ink-light'
+          }`}
+        >
+          <Radio size={14} />
+          廣播
         </button>
       </div>
 
       {/* Flashcard */}
       {currentCard && (
-        <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
+        <div className="bg-surface rounded-2xl shadow-warm border border-cream-dark/40 overflow-hidden">
           {/* Question */}
-          <div className="p-5 border-b border-cream-dark">
+          <div className="p-5 border-b border-cream-dark/40">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-chinese text-ink-light bg-cream-dark px-2 py-1 rounded-lg">
+              <span className="text-xs font-chinese font-medium text-accent bg-accent-light px-2 py-1 rounded-lg">
                 問題
               </span>
               <SpeakButton text={currentCard.question_en} size="lg" />
@@ -184,14 +298,15 @@ export default function PracticePage() {
           {!showAnswer ? (
             <button
               onClick={() => setShowAnswer(true)}
-              className="w-full p-6 text-center font-chinese text-accent text-lg hover:bg-cream-dark/30 transition-colors"
+              className="w-full p-6 text-center font-chinese text-accent text-lg hover:bg-accent-light/30 transition-colors flex items-center justify-center gap-2"
             >
-              點擊顯示答案 👇
+              點擊顯示答案
+              <ChevronDown size={20} className="animate-bounce-subtle" />
             </button>
           ) : (
-            <div className="p-5">
+            <div className="p-5 animate-fade-in-up">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-chinese text-ink-light bg-cream-dark px-2 py-1 rounded-lg">
+                <span className="text-xs font-chinese font-medium text-secondary bg-secondary-light px-2 py-1 rounded-lg">
                   答案
                 </span>
                 <SpeakButton text={currentCard.answer_en} size="lg" />
@@ -209,23 +324,46 @@ export default function PracticePage() {
         </div>
       )}
 
+      {/* Broadcast Bar */}
+      {broadcasting && (
+        <BroadcastBar
+          playing={!broadcastPaused}
+          onToggle={toggleBroadcastPause}
+          onStop={stopBroadcast}
+          currentIndex={broadcastIndex}
+          totalCards={cards.length}
+          phase={broadcastPhase}
+        />
+      )}
+
+      {/* Broadcast done message */}
+      {broadcastDone && !broadcasting && (
+        <div className="mt-4 p-4 bg-accent-light rounded-2xl text-center font-chinese text-accent font-medium animate-fade-in-up">
+          播放完畢！
+        </div>
+      )}
+
       {/* Navigation */}
-      <div className="flex items-center justify-between mt-6">
-        <button
-          onClick={() => goTo(-1)}
-          disabled={currentIndex <= 0}
-          className="px-6 py-3 font-chinese font-bold text-accent bg-white border border-cream-dark hover:bg-cream-dark rounded-xl transition-colors disabled:opacity-30"
-        >
-          ← 上一題
-        </button>
-        <button
-          onClick={() => goTo(1)}
-          disabled={currentIndex >= cards.length - 1}
-          className="px-6 py-3 font-chinese font-bold text-white bg-accent hover:bg-accent-dark rounded-xl transition-colors disabled:opacity-30"
-        >
-          下一題 →
-        </button>
-      </div>
+      {!broadcasting && (
+        <div className="flex items-center justify-between mt-6">
+          <button
+            onClick={() => goTo(-1)}
+            disabled={currentIndex <= 0}
+            className="px-5 py-3 font-chinese font-bold text-accent bg-surface border border-cream-dark/40 hover:bg-cream-dark/30 rounded-xl transition-colors disabled:opacity-30 press-scale flex items-center gap-1"
+          >
+            <ChevronLeft size={18} />
+            上一題
+          </button>
+          <button
+            onClick={() => goTo(1)}
+            disabled={currentIndex >= cards.length - 1}
+            className="px-5 py-3 font-chinese font-bold text-white bg-gradient-to-r from-accent to-accent-dark rounded-xl transition-colors disabled:opacity-30 press-scale flex items-center gap-1"
+          >
+            下一題
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Library, Sparkles } from 'lucide-react'
+import { Library, Sparkles, Printer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile, getProfileName } from '../lib/profile'
 import CategoryCard from '../components/CategoryCard'
@@ -52,16 +52,23 @@ export default function HomePage() {
         <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center">
           <Library size={20} className="text-accent" />
         </div>
-        <h1 className="text-2xl font-bold text-ink">
+        <h1 className="text-2xl font-bold text-ink flex-1">
           <span className="font-serif">{getProfileName()}</span>
           <span className="font-chinese text-lg text-ink-light ml-1.5">的卡片</span>
         </h1>
+        <button
+          onClick={() => navigate('/print')}
+          className="p-2.5 hover:bg-accent-light rounded-xl transition-colors press-scale"
+          aria-label="列印卡片"
+        >
+          <Printer size={20} className="text-ink-light" />
+        </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
         <button
           onClick={() => navigate('/category/all')}
-          className="bg-gradient-to-br from-accent to-accent-dark text-white rounded-2xl p-5 shadow-warm hover:shadow-warm-lg transition-all text-left col-span-2 press-scale animate-fade-in-up"
+          className="bg-gradient-to-br from-accent to-accent-dark text-white rounded-2xl p-5 shadow-warm hover:shadow-warm-lg transition-all text-left col-span-2 md:col-span-3 press-scale animate-fade-in-up"
         >
           <span className="font-chinese font-bold text-lg">全部卡片</span>
           <p className="text-white/80 text-sm font-chinese mt-1">

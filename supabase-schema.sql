@@ -41,7 +41,29 @@ CREATE POLICY "Public access cards"
   USING (true)
   WITH CHECK (true);
 
+-- Vocabulary (生字簿)
+CREATE TABLE vocabulary (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile TEXT NOT NULL,
+  word TEXT NOT NULL,
+  phonetic TEXT,
+  part_of_speech TEXT,
+  definition_en TEXT,
+  definition_zh TEXT,
+  example_en TEXT,
+  is_mastered BOOLEAN DEFAULT false,
+  last_practiced_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE vocabulary ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access vocabulary"
+  ON vocabulary FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
 -- Indexes
 CREATE INDEX idx_cards_profile ON cards(profile);
 CREATE INDEX idx_cards_category_id ON cards(category_id);
 CREATE INDEX idx_categories_profile ON categories(profile);
+CREATE INDEX idx_vocabulary_profile ON vocabulary(profile);

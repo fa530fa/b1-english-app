@@ -1,12 +1,13 @@
-// Translation provider: 'mymemory' | 'google'
-// To switch, change PROVIDER and add VITE_GOOGLE_TRANSLATE_API_KEY to .env
-const PROVIDER = import.meta.env.VITE_TRANSLATE_PROVIDER || 'mymemory'
+// Translation provider: 'openai' | 'mymemory' | 'google'
+// OpenAI is the default when VITE_OPENAI_API_KEY is set.
+const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY || ''
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY || ''
+const PROVIDER = import.meta.env.VITE_TRANSLATE_PROVIDER || (OPENAI_KEY ? 'openai' : 'mymemory')
 
 const cache = new Map()
 
 let lastCallTime = 0
-const DEBOUNCE_MS = 300
+const DEBOUNCE_MS = 150 // OpenAI can handle faster calls
 
 async function waitForDebounce() {
   const now = Date.now()
@@ -17,6 +18,40 @@ async function waitForDebounce() {
   lastCallTime = Date.now()
 }
 
+// ── OpenAI provider ──
+
+async function openaiChat(messages, maxTokens = 200) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${OPENAI_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.3,
+    }),
+  })
+  if (!res.ok) return null
+  const data = await res.json()
+  return data.choices?.[0]?.message?.content?.trim() || null
+}
+
+async function openaiTranslate(text) {
+  return openaiChat([
+    {
+      role: 'system',
+      content:
+        '你是翻譯助手。將英文翻譯成香港繁體中文，用詞自然、貼近香港人日常用語。只回覆翻譯結果，不加解釋。',
+    },
+    { role: 'user', content: text },
+  ])
+}
+
+// ── MyMemory provider (free fallback) ──
+
 async function myMemoryTranslate(text) {
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-TW`
   const res = await fetch(url)
@@ -26,6 +61,8 @@ async function myMemoryTranslate(text) {
   }
   return null
 }
+
+// ── Google provider ──
 
 async function googleTranslate(text) {
   const url = `https://translation.googleapis.com/language/translate/v2?key=${GOOGLE_API_KEY}`
@@ -38,10 +75,15 @@ async function googleTranslate(text) {
   return data.data?.translations?.[0]?.translatedText || null
 }
 
+// ── Provider map ──
+
 const providers = {
+  openai: openaiTranslate,
   mymemory: myMemoryTranslate,
   google: googleTranslate,
 }
+
+// ── Public API ──
 
 export async function translateToZH(text) {
   if (!text || !text.trim()) return ''
@@ -52,7 +94,7 @@ export async function translateToZH(text) {
   await waitForDebounce()
 
   try {
-    const translate = providers[PROVIDER] || providers.mymemory
+    const translate = providers[PROVIDER] || providers.openai
     const result = await translate(text.trim())
     if (result) {
       cache.set(key, result)
@@ -71,28 +113,45 @@ export async function translateWord(word) {
   return translateToZH(cleaned)
 }
 
-// Context-aware word translation: translates the full sentence first,
-// then returns the meaning of the specific word within that sentence context.
-// This prevents nonsensical single-word translations like "What" → "想搵乜".
+/**
+ * Context-aware word translation using OpenAI.
+ * Given a word and the full sentence it appears in, returns the
+ * meaning of that specific word in context — in Hong Kong Traditional Chinese.
+ */
 export async function translateWordInContext(word, fullSentence) {
   if (!word || !word.trim()) return ''
   const cleaned = word.trim().replace(/[^a-zA-Z'-]/g, '')
   if (!cleaned) return ''
 
-  // Cache key includes both word and sentence for context-specific results
   const contextKey = `ctx:${cleaned.toLowerCase()}|${fullSentence?.trim().toLowerCase() || ''}`
   if (cache.has(contextKey)) return cache.get(contextKey)
-
-  // Translate the full sentence to get context, then translate
-  // "word (in the sentence: full sentence)" to get contextual meaning
-  const query = `"${cleaned}" in the sentence "${fullSentence?.trim() || cleaned}"`
 
   await waitForDebounce()
 
   try {
-    const translate = providers[PROVIDER] || providers.mymemory
-    // First try: translate just the word but with the sentence as context hint
-    const result = await translate(cleaned)
+    let result
+
+    if (PROVIDER === 'openai' && OPENAI_KEY) {
+      // OpenAI: true context-aware translation in one call
+      result = await openaiChat(
+        [
+          {
+            role: 'system',
+            content:
+              '你是翻譯助手。用戶會給你一個英文單字和它出現的句子。請翻譯該單字在句子中的意思，用香港繁體中文回覆。只回覆翻譯結果（1-5個字），不加解釋。',
+          },
+          {
+            role: 'user',
+            content: `單字：${cleaned}\n句子：${fullSentence?.trim() || cleaned}`,
+          },
+        ],
+        50
+      )
+    } else {
+      const translate = providers[PROVIDER] || providers.mymemory
+      result = await translate(cleaned)
+    }
+
     if (result) {
       cache.set(contextKey, result)
       return result

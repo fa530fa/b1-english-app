@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Printer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import QACard from '../components/QACard'
@@ -72,9 +72,16 @@ export default function CategoryPage() {
           )}
           <h1 className="text-xl font-bold font-chinese text-ink">{title}</h1>
         </div>
-        <span className="text-ink-light text-sm font-chinese ml-auto">
+        <span className="text-ink-light text-sm font-chinese ml-auto mr-1">
           {cards.length} 張
         </span>
+        <button
+          onClick={() => navigate(isAll ? '/print' : `/print?category=${id}`)}
+          className="p-2 hover:bg-accent-light rounded-xl transition-colors press-scale"
+          aria-label="列印此分類"
+        >
+          <Printer size={18} className="text-ink-light" />
+        </button>
       </div>
 
       {cards.length === 0 ? (
