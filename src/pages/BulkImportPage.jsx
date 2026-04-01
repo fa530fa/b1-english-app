@@ -255,7 +255,7 @@ export default function BulkImportPage() {
             <textarea
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
-              placeholder={`支援格式：\n\nQ: What is your name?\nA: My name is ...\n\nQ: Where do you live?\nA: I live in ...\n\n或用空行分隔問題和答案`}
+              placeholder={`格式一（Q:/A: 開頭）：\nQ: What is your name?\nA: My name is Mary.\nQ: Where do you live?\nA: I live in Hong Kong.\n\n格式二（編號）：\n1. What is your name?\nMy name is Mary.\n2. Where do you live?\nI live in Hong Kong.\n\n格式三（空行分隔）：\nWhat is your name?\n\nMy name is Mary.\n\nWhere do you live?\n\nI live in Hong Kong.`}
               rows={12}
               className="w-full px-4 py-3 text-base rounded-xl border border-cream-dark/60 bg-surface focus:border-accent focus:ring-2 focus:ring-accent/15 outline-none resize-none transition-all shadow-warm-sm"
             />

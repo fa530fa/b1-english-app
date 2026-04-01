@@ -23,7 +23,7 @@ function tryQAPrefix(text) {
     }
   }
 
-  return pairs.length >= 2 ? { pairs, format: 'qa-prefix' } : null
+  return pairs.length >= 1 ? { pairs, format: 'qa-prefix' } : null
 }
 
 function tryNumbered(text) {
@@ -50,7 +50,7 @@ function tryNumbered(text) {
     }
   }
 
-  return pairs.length >= 2 ? { pairs, format: 'numbered' } : null
+  return pairs.length >= 1 ? { pairs, format: 'numbered' } : null
 }
 
 function tryAlternating(text) {
