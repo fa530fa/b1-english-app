@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Library, Sparkles, Printer, BookOpen, BookA } from 'lucide-react'
+import { Library, Sparkles, Printer, BookOpen, BookA, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile, getProfileName } from '../lib/profile'
 import CategoryCard from '../components/CategoryCard'
@@ -130,6 +130,15 @@ export default function HomePage() {
           ))}
         </div>
       )}
+
+      {/* FAB - Add card */}
+      <button
+        onClick={() => navigate('/add')}
+        className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-accent to-accent-dark text-white rounded-full shadow-warm-lg press-scale flex items-center justify-center z-40"
+        aria-label="新增卡片"
+      >
+        <Plus size={26} />
+      </button>
 
       {categories.length === 0 && totalCards === 0 && (
         <div className="text-center py-12 animate-fade-in">

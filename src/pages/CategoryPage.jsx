@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Printer } from 'lucide-react'
+import { ChevronLeft, Printer, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import QACard from '../components/QACard'
@@ -83,6 +83,15 @@ export default function CategoryPage() {
           <Printer size={18} className="text-ink-light" />
         </button>
       </div>
+
+      {/* FAB - Add card */}
+      <button
+        onClick={() => navigate('/add')}
+        className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-accent to-accent-dark text-white rounded-full shadow-warm-lg press-scale flex items-center justify-center z-40"
+        aria-label="新增卡片"
+      >
+        <Plus size={26} />
+      </button>
 
       {cards.length === 0 ? (
         <div className="text-center py-12 animate-fade-in">
