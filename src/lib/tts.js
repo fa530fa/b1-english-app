@@ -11,20 +11,56 @@ export function setRate(rate) {
   localStorage.setItem('tts-rate', String(rate))
 }
 
-export function speak(text, rate) {
-  if (!isTTSSupported()) return
+/**
+ * Pick the best female British English voice available.
+ * Priority: en-GB female → en-GB any → en female → en any
+ */
+function getBritishFemaleVoice() {
+  const voices = window.speechSynthesis.getVoices()
+  // en-GB female
+  const gbFemale = voices.find(
+    (v) => v.lang === 'en-GB' && v.name.match(/female|woman|girl|kate|serena|amy|emma|susan|stephanie|claire|alice|victoria/i)
+  )
+  if (gbFemale) return gbFemale
+  // en-GB any
+  const gb = voices.find((v) => v.lang === 'en-GB')
+  if (gb) return gb
+  // en female
+  const enFemale = voices.find(
+    (v) => v.lang.startsWith('en') && v.name.match(/female|woman|girl|kate|serena|amy|emma|susan|stephanie|claire|alice|victoria/i)
+  )
+  if (enFemale) return enFemale
+  // en any
+  return voices.find((v) => v.lang.startsWith('en')) || null
+}
 
-  window.speechSynthesis.cancel()
-
+function makeUtterance(text, rate) {
   const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = 'en-US'
+  utterance.lang = 'en-GB'
   utterance.rate = rate ?? getRate()
   utterance.pitch = 1
 
-  // Try to find an English voice
-  const voices = window.speechSynthesis.getVoices()
-  const enVoice = voices.find((v) => v.lang.startsWith('en'))
-  if (enVoice) utterance.voice = enVoice
+  // Voices may not be loaded yet — try immediately, retry after load
+  const voice = getBritishFemaleVoice()
+  if (voice) utterance.voice = voice
+
+  return utterance
+}
+
+export function speak(text, rate) {
+  if (!isTTSSupported()) return
+  window.speechSynthesis.cancel()
+
+  const utterance = makeUtterance(text, rate)
+
+  // If voices weren't ready, wait for them then retry
+  if (!utterance.voice) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.onvoiceschanged = null
+      const u2 = makeUtterance(text, rate)
+      window.speechSynthesis.speak(u2)
+    }
+  }
 
   window.speechSynthesis.speak(utterance)
 }
@@ -48,18 +84,9 @@ export function speakWithCallback(text, rate, onEnd) {
 
   window.speechSynthesis.cancel()
 
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = 'en-US'
-  utterance.rate = rate ?? getRate()
-  utterance.pitch = 1
-
-  const voices = window.speechSynthesis.getVoices()
-  const enVoice = voices.find((v) => v.lang.startsWith('en'))
-  if (enVoice) utterance.voice = enVoice
+  const utterance = makeUtterance(text, rate)
 
   let ended = false
-
-  // Safety timeout: estimate duration based on text length
   const estimatedMs = Math.max(text.length * 80, 2000) + 3000
   const timer = setTimeout(() => {
     if (!ended) {
