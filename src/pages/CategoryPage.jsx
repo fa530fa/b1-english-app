@@ -69,7 +69,7 @@ export default function CategoryPage() {
     )
   }, [])
 
-  const { displayItems, dragIdx, overIdx, itemRefs, startDrag } = useDragSort(
+  const { displayItems, draggedId, itemRefs, startDrag } = useDragSort(
     cards,
     handleReorder
   )
@@ -158,10 +158,8 @@ export default function CategoryPage() {
               key={card.id}
               ref={(el) => { itemRefs.current[i] = el }}
               className={`flex items-center gap-2 rounded-2xl border transition-all ${
-                dragIdx === i
-                  ? 'opacity-40 border-accent/40'
-                  : overIdx === i && dragIdx !== i
-                  ? 'border-accent ring-2 ring-accent/30'
+                card.id === draggedId
+                  ? 'opacity-40 scale-95 border-accent/40'
                   : 'border-transparent'
               }`}
             >

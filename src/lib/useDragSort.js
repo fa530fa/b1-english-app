@@ -2,18 +2,9 @@ import { useState, useRef, useCallback } from 'react'
 
 /**
  * Drag-to-reorder hook using Pointer Events (touch + mouse).
- *
- * Usage:
- *   const { displayItems, dragIdx, overIdx, itemRefs, startDrag } = useDragSort(items, onReorder)
- *
- *   // For each item at index i:
- *   <div ref={(el) => { itemRefs.current[i] = el }}>
- *     <button onPointerDown={(e) => startDrag(e, i)} style={{ touchAction: 'none' }}>
- *       <GripVertical />
- *     </button>
- *   </div>
+ * Returns draggedId (the id of the item being dragged) for correct visual feedback.
  */
-export function useDragSort(items, onReorder) {
+export function useDragSort(items, onReorder, idKey = 'id') {
   const [dragIdx, setDragIdx] = useState(null)
   const [overIdx, setOverIdx] = useState(null)
   const stateRef = useRef({ dragIdx: null, overIdx: null, items: [] })
@@ -81,5 +72,8 @@ export function useDragSort(items, onReorder) {
         })()
       : items
 
-  return { displayItems, dragIdx, overIdx, itemRefs, startDrag }
+  // Track dragged item by ID so consumers can apply correct styles
+  const draggedId = dragIdx !== null && items[dragIdx] ? items[dragIdx][idKey] : null
+
+  return { displayItems, draggedId, itemRefs, startDrag }
 }

@@ -60,7 +60,7 @@ export default function HomePage() {
     )
   }, [])
 
-  const { displayItems, dragIdx, overIdx, itemRefs, startDrag } = useDragSort(
+  const { displayItems, draggedId, itemRefs, startDrag } = useDragSort(
     categories,
     handleReorder
   )
@@ -179,10 +179,8 @@ export default function HomePage() {
               key={cat.id}
               ref={(el) => { itemRefs.current[i] = el }}
               className={`flex items-center gap-2 bg-surface rounded-2xl border transition-all ${
-                dragIdx === i
-                  ? 'opacity-40 shadow-warm-lg border-accent/40'
-                  : overIdx === i && dragIdx !== i
-                  ? 'border-accent shadow-warm ring-2 ring-accent/30'
+                cat.id === draggedId
+                  ? 'opacity-40 scale-95 border-accent/40 shadow-warm-lg'
                   : 'border-cream-dark/40 shadow-warm-sm'
               }`}
             >
