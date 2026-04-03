@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookA, Plus, Volume2, ChevronDown, ChevronUp, Trash2, CheckCircle2, Search, Loader2 } from 'lucide-react'
+import { BookA, Plus, Volume2, ChevronDown, ChevronUp, Trash2, CheckCircle2, Search, Loader2, ArrowUpDown, GripVertical, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import { speak } from '../lib/tts'
 import { translateToZH } from '../lib/translate'
 import { lookupWord } from '../lib/dictionary'
+import { useDragSort } from '../lib/useDragSort'
 
 export default function VocabPage() {
   const navigate = useNavigate()
@@ -17,6 +18,7 @@ export default function VocabPage() {
   const [expandedId, setExpandedId] = useState(null)
   const [revealedZh, setRevealedZh] = useState({})
   const [filter, setFilter] = useState('all') // all | learning | mastered
+  const [reorderMode, setReorderMode] = useState(false)
 
   useEffect(() => {
     loadWords()
@@ -28,6 +30,7 @@ export default function VocabPage() {
       .from('vocabulary')
       .select('*')
       .eq('profile', getProfile())
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false })
 
     if (filter === 'learning') query = query.eq('is_mastered', false)
@@ -44,10 +47,7 @@ export default function VocabPage() {
 
     setAdding(true)
 
-    // Look up word details from dictionary API
     const info = await lookupWord(word)
-
-    // Translate to Chinese
     const zh = await translateToZH(word)
 
     const row = {
@@ -86,6 +86,18 @@ export default function VocabPage() {
     setRevealedZh((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
+  const handleReorder = useCallback(async (newWords) => {
+    setWords(newWords)
+    await supabase.from('vocabulary').upsert(
+      newWords.map((w, i) => ({ id: w.id, sort_order: i }))
+    )
+  }, [])
+
+  const { displayItems, dragIdx, overIdx, itemRefs, startDrag } = useDragSort(
+    words,
+    handleReorder
+  )
+
   const masteredCount = words.filter((w) => w.is_mastered).length
 
   return (
@@ -96,12 +108,29 @@ export default function VocabPage() {
           <BookA size={22} className="text-accent" />
           <h1 className="text-xl font-bold font-serif text-ink">生字簿</h1>
         </div>
-        <button
-          onClick={() => navigate('/vocab/practice')}
-          className="px-4 py-2 text-sm font-chinese font-bold text-white bg-gradient-to-r from-accent to-accent-dark rounded-xl press-scale shadow-warm"
-        >
-          每日練習
-        </button>
+        <div className="flex items-center gap-2">
+          {words.length > 1 && filter === 'all' && (
+            <button
+              onClick={() => setReorderMode(!reorderMode)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-sm font-chinese press-scale transition-colors ${
+                reorderMode
+                  ? 'bg-accent text-white'
+                  : 'bg-surface border border-cream-dark/60 text-ink-light'
+              }`}
+            >
+              {reorderMode ? <Check size={14} /> : <ArrowUpDown size={14} />}
+              {reorderMode ? '完成' : '排列'}
+            </button>
+          )}
+          {!reorderMode && (
+            <button
+              onClick={() => navigate('/vocab/practice')}
+              className="px-4 py-2 text-sm font-chinese font-bold text-white bg-gradient-to-r from-accent to-accent-dark rounded-xl press-scale shadow-warm"
+            >
+              每日練習
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -120,32 +149,34 @@ export default function VocabPage() {
         </div>
       </div>
 
-      {/* Filter + Add */}
-      <div className="flex gap-2 mb-4">
-        {['all', 'learning', 'mastered'].map((f) => (
+      {/* Filter + Add (hidden in reorder mode) */}
+      {!reorderMode && (
+        <div className="flex gap-2 mb-4">
+          {['all', 'learning', 'mastered'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors press-scale ${
+                filter === f
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-surface border-cream-dark/60 text-ink-light'
+              }`}
+            >
+              {f === 'all' ? '全部' : f === 'learning' ? '學習中' : '已掌握'}
+            </button>
+          ))}
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-2 text-sm rounded-xl border font-chinese transition-colors press-scale ${
-              filter === f
-                ? 'bg-accent text-white border-accent'
-                : 'bg-surface border-cream-dark/60 text-ink-light'
-            }`}
+            onClick={() => setShowAdd(!showAdd)}
+            className="ml-auto px-3 py-2 text-sm rounded-xl bg-accent text-white font-chinese transition-colors press-scale flex items-center gap-1"
           >
-            {f === 'all' ? '全部' : f === 'learning' ? '學習中' : '已掌握'}
+            <Plus size={16} />
+            新增
           </button>
-        ))}
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="ml-auto px-3 py-2 text-sm rounded-xl bg-accent text-white font-chinese transition-colors press-scale flex items-center gap-1"
-        >
-          <Plus size={16} />
-          新增
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Add word form */}
-      {showAdd && (
+      {showAdd && !reorderMode && (
         <div className="bg-surface rounded-2xl shadow-warm-sm border border-cream-dark/40 p-4 mb-4 animate-fade-in-up">
           <div className="flex gap-2">
             <input
@@ -187,7 +218,46 @@ export default function VocabPage() {
             {filter !== 'all' ? '沒有符合的生字' : '還沒有生字'}
           </p>
         </div>
+      ) : reorderMode ? (
+        /* Reorder list */
+        <div className="space-y-2">
+          {displayItems.map((w, i) => (
+            <div
+              key={w.id}
+              ref={(el) => { itemRefs.current[i] = el }}
+              className={`flex items-center gap-2 bg-surface rounded-2xl border shadow-warm-sm transition-all ${
+                dragIdx === i
+                  ? 'opacity-40 border-accent/40'
+                  : overIdx === i && dragIdx !== i
+                  ? 'border-accent ring-2 ring-accent/30'
+                  : 'border-cream-dark/40'
+              }`}
+            >
+              <button
+                onPointerDown={(e) => startDrag(e, i)}
+                style={{ touchAction: 'none' }}
+                className="pl-4 py-4 pr-2 text-ink-faint cursor-grab shrink-0"
+                aria-label="拖曳排列"
+              >
+                <GripVertical size={20} />
+              </button>
+              <div className="flex-1 py-3 pr-4 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-bold text-ink">{w.word}</span>
+                  {w.part_of_speech && (
+                    <span className="text-xs text-ink-faint italic">({w.part_of_speech})</span>
+                  )}
+                </div>
+                {w.phonetic && (
+                  <p className="text-xs text-ink-faint mt-0.5">{w.phonetic}</p>
+                )}
+              </div>
+              <div className={`w-2 h-2 rounded-full mr-4 shrink-0 ${w.is_mastered ? 'bg-accent' : 'bg-cream-dark'}`} />
+            </div>
+          ))}
+        </div>
       ) : (
+        /* Normal list */
         <div className="space-y-2">
           {words.map((w, i) => (
             <WordCard

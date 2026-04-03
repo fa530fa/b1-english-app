@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Library, Sparkles, Printer, BookOpen, BookA, Plus } from 'lucide-react'
+import { Library, Sparkles, Printer, BookOpen, BookA, Plus, ArrowUpDown, GripVertical, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile, getProfileName } from '../lib/profile'
 import CategoryCard from '../components/CategoryCard'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { useDragSort } from '../lib/useDragSort'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [cardCounts, setCardCounts] = useState({})
   const [totalCards, setTotalCards] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [reorderMode, setReorderMode] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -50,6 +52,18 @@ export default function HomePage() {
     setCardCounts(counts)
     setLoading(false)
   }
+
+  const handleReorder = useCallback(async (newCategories) => {
+    setCategories(newCategories)
+    await supabase.from('categories').upsert(
+      newCategories.map((cat, i) => ({ id: cat.id, sort_order: i }))
+    )
+  }, [])
+
+  const { displayItems, dragIdx, overIdx, itemRefs, startDrag } = useDragSort(
+    categories,
+    handleReorder
+  )
 
   if (loading) return <LoadingSpinner />
 
@@ -117,8 +131,35 @@ export default function HomePage() {
         </div>
       </button>
 
-      {/* Category grid */}
-      {categories.length > 0 && (
+      {/* Category section header */}
+      {categories.length > 1 && (
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-chinese text-ink-faint">分類</p>
+          <button
+            onClick={() => setReorderMode(!reorderMode)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-chinese press-scale transition-colors ${
+              reorderMode
+                ? 'bg-accent text-white'
+                : 'bg-surface border border-cream-dark/60 text-ink-light'
+            }`}
+          >
+            {reorderMode ? (
+              <>
+                <Check size={14} />
+                完成
+              </>
+            ) : (
+              <>
+                <ArrowUpDown size={14} />
+                排列
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Category grid (normal) or list (reorder) */}
+      {categories.length > 0 && !reorderMode && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
           {categories.map((cat, i) => (
             <CategoryCard
@@ -131,14 +172,53 @@ export default function HomePage() {
         </div>
       )}
 
+      {categories.length > 0 && reorderMode && (
+        <div className="space-y-2 mb-4">
+          {displayItems.map((cat, i) => (
+            <div
+              key={cat.id}
+              ref={(el) => { itemRefs.current[i] = el }}
+              className={`flex items-center gap-2 bg-surface rounded-2xl border transition-all ${
+                dragIdx === i
+                  ? 'opacity-40 shadow-warm-lg border-accent/40'
+                  : overIdx === i && dragIdx !== i
+                  ? 'border-accent shadow-warm ring-2 ring-accent/30'
+                  : 'border-cream-dark/40 shadow-warm-sm'
+              }`}
+            >
+              <button
+                onPointerDown={(e) => startDrag(e, i)}
+                style={{ touchAction: 'none' }}
+                className="pl-4 py-4 pr-2 text-ink-faint active:text-ink cursor-grab"
+                aria-label="拖曳排列"
+              >
+                <GripVertical size={20} />
+              </button>
+              <div className="flex items-center gap-2.5 flex-1 py-4 pr-4">
+                <div
+                  className="w-3.5 h-3.5 rounded-full shrink-0"
+                  style={{ backgroundColor: cat.color || '#4E7C5F' }}
+                />
+                <span className="font-chinese font-bold text-ink truncate">{cat.name}</span>
+                <span className="text-xs text-ink-faint font-chinese ml-auto">
+                  {cardCounts[cat.id] || 0} 張
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* FAB - Add card */}
-      <button
-        onClick={() => navigate('/add')}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-accent to-accent-dark text-white rounded-full shadow-warm-lg press-scale flex items-center justify-center z-40"
-        aria-label="新增卡片"
-      >
-        <Plus size={26} />
-      </button>
+      {!reorderMode && (
+        <button
+          onClick={() => navigate('/add')}
+          className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-accent to-accent-dark text-white rounded-full shadow-warm-lg press-scale flex items-center justify-center z-40"
+          aria-label="新增卡片"
+        >
+          <Plus size={26} />
+        </button>
+      )}
 
       {categories.length === 0 && totalCards === 0 && (
         <div className="text-center py-12 animate-fade-in">

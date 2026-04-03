@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Printer, Plus } from 'lucide-react'
+import { ChevronLeft, Printer, Plus, ArrowUpDown, GripVertical, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import QACard from '../components/QACard'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { useDragSort } from '../lib/useDragSort'
 
 export default function CategoryPage() {
   const { id } = useParams()
@@ -12,6 +13,7 @@ export default function CategoryPage() {
   const [cards, setCards] = useState([])
   const [category, setCategory] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [reorderMode, setReorderMode] = useState(false)
 
   const isAll = id === 'all'
 
@@ -35,6 +37,7 @@ export default function CategoryPage() {
       .from('cards')
       .select('*')
       .eq('profile', getProfile())
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false })
 
     if (!isAll) {
@@ -45,6 +48,18 @@ export default function CategoryPage() {
     setCards(data || [])
     setLoading(false)
   }
+
+  const handleReorder = useCallback(async (newCards) => {
+    setCards(newCards)
+    await supabase.from('cards').upsert(
+      newCards.map((card, i) => ({ id: card.id, sort_order: i }))
+    )
+  }, [])
+
+  const { displayItems, dragIdx, overIdx, itemRefs, startDrag } = useDragSort(
+    cards,
+    handleReorder
+  )
 
   if (loading) return <LoadingSpinner />
 
@@ -72,9 +87,25 @@ export default function CategoryPage() {
           )}
           <h1 className="text-xl font-bold font-chinese text-ink">{title}</h1>
         </div>
-        <span className="text-ink-light text-sm font-chinese ml-auto mr-1">
+        <span className="text-ink-light text-sm font-chinese ml-auto">
           {cards.length} 張
         </span>
+
+        {/* Reorder toggle — only for specific categories, not "all" */}
+        {!isAll && cards.length > 1 && (
+          <button
+            onClick={() => setReorderMode(!reorderMode)}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-sm font-chinese press-scale transition-colors ${
+              reorderMode
+                ? 'bg-accent text-white'
+                : 'bg-surface border border-cream-dark/60 text-ink-light'
+            }`}
+          >
+            {reorderMode ? <Check size={14} /> : <ArrowUpDown size={14} />}
+            {reorderMode ? '完成' : '排列'}
+          </button>
+        )}
+
         <button
           onClick={() => navigate(isAll ? '/print' : `/print?category=${id}`)}
           className="p-2 hover:bg-accent-light rounded-xl transition-colors press-scale"
@@ -85,13 +116,15 @@ export default function CategoryPage() {
       </div>
 
       {/* FAB - Add card */}
-      <button
-        onClick={() => navigate('/add')}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-accent to-accent-dark text-white rounded-full shadow-warm-lg press-scale flex items-center justify-center z-40"
-        aria-label="新增卡片"
-      >
-        <Plus size={26} />
-      </button>
+      {!reorderMode && (
+        <button
+          onClick={() => navigate('/add')}
+          className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-accent to-accent-dark text-white rounded-full shadow-warm-lg press-scale flex items-center justify-center z-40"
+          aria-label="新增卡片"
+        >
+          <Plus size={26} />
+        </button>
+      )}
 
       {cards.length === 0 ? (
         <div className="text-center py-12 animate-fade-in">
@@ -104,6 +137,34 @@ export default function CategoryPage() {
           >
             新增卡片
           </button>
+        </div>
+      ) : reorderMode ? (
+        <div className="space-y-2">
+          {displayItems.map((card, i) => (
+            <div
+              key={card.id}
+              ref={(el) => { itemRefs.current[i] = el }}
+              className={`flex items-center gap-2 rounded-2xl border transition-all ${
+                dragIdx === i
+                  ? 'opacity-40 border-accent/40'
+                  : overIdx === i && dragIdx !== i
+                  ? 'border-accent ring-2 ring-accent/30'
+                  : 'border-transparent'
+              }`}
+            >
+              <button
+                onPointerDown={(e) => startDrag(e, i)}
+                style={{ touchAction: 'none' }}
+                className="p-3 text-ink-faint cursor-grab shrink-0"
+                aria-label="拖曳排列"
+              >
+                <GripVertical size={20} />
+              </button>
+              <div className="flex-1 min-w-0">
+                <QACard card={card} reorderMode />
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="space-y-3">
