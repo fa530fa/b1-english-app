@@ -5,6 +5,10 @@ const PHASE_LABELS = {
   'gap-q': '問題',
   answer: '答案',
   'gap-a': '答案',
+  word: '生字',
+  'gap-w': '生字',
+  definition: '解釋',
+  'gap-d': '解釋',
 }
 
 export default function BroadcastBar({

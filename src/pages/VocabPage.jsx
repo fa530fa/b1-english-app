@@ -1,12 +1,13 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookA, Plus, Volume2, ChevronDown, ChevronUp, Trash2, CheckCircle2, Search, Loader2, ArrowUpDown, GripVertical, Check } from 'lucide-react'
+import { BookA, Plus, Volume2, ChevronDown, ChevronUp, Trash2, CheckCircle2, Search, Loader2, ArrowUpDown, GripVertical, Check, Radio } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
-import { speak } from '../lib/tts'
+import { speak, stopSpeaking, speakWithCallback, getRate } from '../lib/tts'
 import { translateToZH } from '../lib/translate'
 import { lookupWord } from '../lib/dictionary'
 import { useDragSort } from '../lib/useDragSort'
+import BroadcastBar from '../components/BroadcastBar'
 
 export default function VocabPage() {
   const navigate = useNavigate()
@@ -19,6 +20,19 @@ export default function VocabPage() {
   const [revealedZh, setRevealedZh] = useState({})
   const [filter, setFilter] = useState('all') // all | learning | mastered
   const [reorderMode, setReorderMode] = useState(false)
+
+  // Broadcast state
+  const [broadcasting, setBroadcasting] = useState(false)
+  const [broadcastPaused, setBroadcastPaused] = useState(false)
+  const [broadcastIndex, setBroadcastIndex] = useState(0)
+  const [broadcastPhase, setBroadcastPhase] = useState('word')
+  const [broadcastLoop, setBroadcastLoop] = useState(0)
+  const broadcastActiveRef = useRef(false)
+  const cleanupRef = useRef(null)
+  const gapTimerRef = useRef(null)
+
+  // Cleanup on unmount
+  useEffect(() => () => stopBroadcast(), [])
 
   useEffect(() => {
     loadWords()
@@ -100,6 +114,80 @@ export default function VocabPage() {
     setRevealedZh((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
+  function startBroadcast() {
+    stopSpeaking()
+    setBroadcasting(true)
+    setBroadcastPaused(false)
+    setBroadcastLoop(0)
+    setBroadcastIndex(0)
+    setBroadcastPhase('word')
+    broadcastActiveRef.current = true
+    broadcastStep(0, 'word', 0)
+  }
+
+  function stopBroadcast() {
+    broadcastActiveRef.current = false
+    stopSpeaking()
+    clearTimeout(gapTimerRef.current)
+    if (cleanupRef.current) cleanupRef.current()
+    setBroadcasting(false)
+    setBroadcastPaused(false)
+  }
+
+  function toggleBroadcastPause() {
+    if (broadcastPaused) {
+      setBroadcastPaused(false)
+      broadcastActiveRef.current = true
+      broadcastStep(broadcastIndex, broadcastPhase, broadcastLoop)
+    } else {
+      broadcastActiveRef.current = false
+      stopSpeaking()
+      clearTimeout(gapTimerRef.current)
+      if (cleanupRef.current) cleanupRef.current()
+      setBroadcastPaused(true)
+    }
+  }
+
+  function broadcastStep(idx, phase, loopCount) {
+    if (!broadcastActiveRef.current) return
+
+    // End of list — loop back
+    if (idx >= words.length) {
+      const nextLoop = loopCount + 1
+      setBroadcastLoop(nextLoop)
+      gapTimerRef.current = setTimeout(() => {
+        if (!broadcastActiveRef.current) return
+        broadcastStep(0, 'word', nextLoop)
+      }, 1500)
+      return
+    }
+
+    const w = words[idx]
+    setBroadcastIndex(idx)
+    setBroadcastPhase(phase)
+
+    if (phase === 'word') {
+      // Speak the word
+      cleanupRef.current = speakWithCallback(w.word, getRate(), () => {
+        if (!broadcastActiveRef.current) return
+        setBroadcastPhase('gap-w')
+        gapTimerRef.current = setTimeout(() => {
+          broadcastStep(idx, 'definition', loopCount)
+        }, 1200)
+      })
+    } else if (phase === 'definition') {
+      // Speak definition_en if available, else move on
+      const def = w.definition_en || w.word
+      cleanupRef.current = speakWithCallback(def, getRate(), () => {
+        if (!broadcastActiveRef.current) return
+        setBroadcastPhase('gap-d')
+        gapTimerRef.current = setTimeout(() => {
+          broadcastStep(idx + 1, 'word', loopCount)
+        }, 2000)
+      })
+    }
+  }
+
   const handleReorder = useCallback(async (newWords) => {
     setWords(newWords)
     await Promise.all(
@@ -125,7 +213,7 @@ export default function VocabPage() {
           <h1 className="text-xl font-bold font-serif text-ink">生字簿</h1>
         </div>
         <div className="flex items-center gap-2">
-          {words.length > 1 && filter === 'all' && (
+          {words.length > 1 && filter === 'all' && !broadcasting && (
             <button
               onClick={() => setReorderMode(!reorderMode)}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-sm font-chinese press-scale transition-colors ${
@@ -138,7 +226,20 @@ export default function VocabPage() {
               {reorderMode ? '完成' : '排列'}
             </button>
           )}
-          {!reorderMode && (
+          {!reorderMode && words.length > 0 && (
+            <button
+              onClick={() => (broadcasting ? stopBroadcast() : startBroadcast())}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-chinese rounded-xl press-scale transition-colors ${
+                broadcasting
+                  ? 'bg-accent text-white'
+                  : 'bg-surface border border-cream-dark/60 text-ink-light'
+              }`}
+            >
+              <Radio size={14} />
+              廣播
+            </button>
+          )}
+          {!reorderMode && !broadcasting && (
             <button
               onClick={() => navigate('/vocab/practice')}
               className="px-4 py-2 text-sm font-chinese font-bold text-white bg-gradient-to-r from-accent to-accent-dark rounded-xl press-scale shadow-warm"
@@ -165,8 +266,21 @@ export default function VocabPage() {
         </div>
       </div>
 
-      {/* Filter + Add (hidden in reorder mode) */}
-      {!reorderMode && (
+      {/* Broadcast Bar */}
+      {broadcasting && (
+        <BroadcastBar
+          playing={!broadcastPaused}
+          onToggle={toggleBroadcastPause}
+          onStop={stopBroadcast}
+          currentIndex={broadcastIndex}
+          totalCards={words.length}
+          phase={broadcastPhase}
+          loopCount={broadcastLoop}
+        />
+      )}
+
+      {/* Filter + Add (hidden in reorder/broadcast mode) */}
+      {!reorderMode && !broadcasting && (
         <div className="flex gap-2 mb-4">
           {['all', 'learning', 'mastered'].map((f) => (
             <button
@@ -192,7 +306,7 @@ export default function VocabPage() {
       )}
 
       {/* Add word form */}
-      {showAdd && !reorderMode && (
+      {showAdd && !reorderMode && !broadcasting && (
         <div className="bg-surface rounded-2xl shadow-warm-sm border border-cream-dark/40 p-4 mb-4 animate-fade-in-up">
           <div className="flex gap-2">
             <input
