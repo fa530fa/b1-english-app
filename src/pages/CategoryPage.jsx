@@ -44,7 +44,20 @@ export default function CategoryPage() {
       query = query.eq('category_id', id)
     }
 
-    const { data } = await query
+    let { data, error } = await query
+
+    // Fallback if sort_order column hasn't been added yet
+    if (error) {
+      let fallback = supabase
+        .from('cards')
+        .select('*')
+        .eq('profile', getProfile())
+        .order('created_at', { ascending: false })
+      if (!isAll) fallback = fallback.eq('category_id', id)
+      const { data: fallbackData } = await fallback
+      data = fallbackData
+    }
+
     setCards(data || [])
     setLoading(false)
   }

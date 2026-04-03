@@ -66,7 +66,13 @@ export function useDragSort(items, onReorder) {
 
   // Preview the new order while dragging
   const displayItems =
-    dragIdx !== null && overIdx !== null && dragIdx !== overIdx
+    dragIdx !== null &&
+    overIdx !== null &&
+    dragIdx !== overIdx &&
+    dragIdx >= 0 &&
+    dragIdx < items.length &&
+    overIdx >= 0 &&
+    overIdx < items.length
       ? (() => {
           const arr = [...items]
           const [moved] = arr.splice(dragIdx, 1)

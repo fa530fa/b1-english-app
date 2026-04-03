@@ -36,7 +36,21 @@ export default function VocabPage() {
     if (filter === 'learning') query = query.eq('is_mastered', false)
     if (filter === 'mastered') query = query.eq('is_mastered', true)
 
-    const { data } = await query
+    let { data, error } = await query
+
+    // Fallback if sort_order column hasn't been added yet
+    if (error) {
+      let fallback = supabase
+        .from('vocabulary')
+        .select('*')
+        .eq('profile', getProfile())
+        .order('created_at', { ascending: false })
+      if (filter === 'learning') fallback = fallback.eq('is_mastered', false)
+      if (filter === 'mastered') fallback = fallback.eq('is_mastered', true)
+      const { data: fallbackData } = await fallback
+      data = fallbackData
+    }
+
     setWords(data || [])
     setLoading(false)
   }
