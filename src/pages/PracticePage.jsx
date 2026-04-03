@@ -34,7 +34,7 @@ export default function PracticePage() {
   const [broadcastPaused, setBroadcastPaused] = useState(false)
   const [broadcastIndex, setBroadcastIndex] = useState(0)
   const [broadcastPhase, setBroadcastPhase] = useState('question')
-  const [broadcastDone, setBroadcastDone] = useState(false)
+  const [broadcastLoop, setBroadcastLoop] = useState(0) // counts loops completed
   const cleanupRef = useRef(null)
   const gapTimerRef = useRef(null)
   const broadcastActiveRef = useRef(false)
@@ -116,13 +116,13 @@ export default function PracticePage() {
     stopSpeaking()
     setBroadcasting(true)
     setBroadcastPaused(false)
-    setBroadcastDone(false)
+    setBroadcastLoop(0)
     setBroadcastIndex(0)
     setBroadcastPhase('question')
     setCurrentIndex(0)
     setShowAnswer(false)
     broadcastActiveRef.current = true
-    broadcastStep(0, 'question')
+    broadcastStep(0, 'question', 0)
   }
 
   function stopBroadcast() {
@@ -132,7 +132,6 @@ export default function PracticePage() {
     if (cleanupRef.current) cleanupRef.current()
     setBroadcasting(false)
     setBroadcastPaused(false)
-    setBroadcastDone(false)
   }
 
   function toggleBroadcastPause() {
@@ -140,7 +139,7 @@ export default function PracticePage() {
       // Resume
       setBroadcastPaused(false)
       broadcastActiveRef.current = true
-      broadcastStep(broadcastIndex, broadcastPhase)
+      broadcastStep(broadcastIndex, broadcastPhase, broadcastLoop)
     } else {
       // Pause
       broadcastActiveRef.current = false
@@ -151,11 +150,17 @@ export default function PracticePage() {
     }
   }
 
-  function broadcastStep(idx, phase) {
+  function broadcastStep(idx, phase, loopCount) {
     if (!broadcastActiveRef.current) return
+
+    // End of cards — loop back to beginning
     if (idx >= cards.length) {
-      setBroadcastDone(true)
-      stopBroadcast()
+      const nextLoop = loopCount + 1
+      setBroadcastLoop(nextLoop)
+      gapTimerRef.current = setTimeout(() => {
+        if (!broadcastActiveRef.current) return
+        broadcastStep(0, 'question', nextLoop)
+      }, 1500)
       return
     }
 
@@ -170,7 +175,7 @@ export default function PracticePage() {
         if (!broadcastActiveRef.current) return
         setBroadcastPhase('gap-q')
         gapTimerRef.current = setTimeout(() => {
-          broadcastStep(idx, 'answer')
+          broadcastStep(idx, 'answer', loopCount)
         }, 1500)
       })
     } else if (phase === 'answer') {
@@ -179,7 +184,7 @@ export default function PracticePage() {
         if (!broadcastActiveRef.current) return
         setBroadcastPhase('gap-a')
         gapTimerRef.current = setTimeout(() => {
-          broadcastStep(idx + 1, 'question')
+          broadcastStep(idx + 1, 'question', loopCount)
         }, 2000)
       })
     }
@@ -341,14 +346,8 @@ export default function PracticePage() {
           currentIndex={broadcastIndex}
           totalCards={cards.length}
           phase={broadcastPhase}
+          loopCount={broadcastLoop}
         />
-      )}
-
-      {/* Broadcast done message */}
-      {broadcastDone && !broadcasting && (
-        <div className="mt-4 p-4 bg-accent-light rounded-2xl text-center font-chinese text-accent font-medium animate-fade-in-up">
-          播放完畢！
-        </div>
       )}
 
       {/* Navigation */}

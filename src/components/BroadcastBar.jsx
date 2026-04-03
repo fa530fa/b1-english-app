@@ -14,6 +14,7 @@ export default function BroadcastBar({
   currentIndex,
   totalCards,
   phase,
+  loopCount,
 }) {
   const progress = totalCards > 0 ? ((currentIndex + 1) / totalCards) * 100 : 0
 
@@ -41,10 +42,16 @@ export default function BroadcastBar({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-chinese font-bold text-ink">
             第 {currentIndex + 1}/{totalCards} 題
+            {loopCount > 0 && (
+              <span className="ml-2 text-xs font-normal text-ink-faint">
+                第 {loopCount + 1} 遍
+              </span>
+            )}
           </p>
           <p className="text-xs font-chinese text-ink-light">
             {PHASE_LABELS[phase] || '準備中'}
             {!playing && ' · 已暫停'}
+            {playing && ' · 循環播放'}
           </p>
         </div>
 
