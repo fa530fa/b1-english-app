@@ -167,23 +167,12 @@ export default function VocabPage() {
     setBroadcastPhase(phase)
 
     if (phase === 'word') {
-      // Speak the word
       cleanupRef.current = speakWithCallback(w.word, getRate(), () => {
         if (!broadcastActiveRef.current) return
         setBroadcastPhase('gap-w')
         gapTimerRef.current = setTimeout(() => {
-          broadcastStep(idx, 'definition', loopCount)
-        }, 1200)
-      })
-    } else if (phase === 'definition') {
-      // Speak definition_en if available, else move on
-      const def = w.definition_en || w.word
-      cleanupRef.current = speakWithCallback(def, getRate(), () => {
-        if (!broadcastActiveRef.current) return
-        setBroadcastPhase('gap-d')
-        gapTimerRef.current = setTimeout(() => {
           broadcastStep(idx + 1, 'word', loopCount)
-        }, 2000)
+        }, 1500)
       })
     }
   }
