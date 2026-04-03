@@ -55,8 +55,10 @@ export default function HomePage() {
 
   const handleReorder = useCallback(async (newCategories) => {
     setCategories(newCategories)
-    await supabase.from('categories').upsert(
-      newCategories.map((cat, i) => ({ id: cat.id, sort_order: i }))
+    await Promise.all(
+      newCategories.map((cat, i) =>
+        supabase.from('categories').update({ sort_order: i }).eq('id', cat.id)
+      )
     )
   }, [])
 

@@ -102,8 +102,10 @@ export default function VocabPage() {
 
   const handleReorder = useCallback(async (newWords) => {
     setWords(newWords)
-    await supabase.from('vocabulary').upsert(
-      newWords.map((w, i) => ({ id: w.id, sort_order: i }))
+    await Promise.all(
+      newWords.map((w, i) =>
+        supabase.from('vocabulary').update({ sort_order: i }).eq('id', w.id)
+      )
     )
   }, [])
 

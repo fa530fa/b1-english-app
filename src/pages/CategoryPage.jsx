@@ -64,8 +64,10 @@ export default function CategoryPage() {
 
   const handleReorder = useCallback(async (newCards) => {
     setCards(newCards)
-    await supabase.from('cards').upsert(
-      newCards.map((card, i) => ({ id: card.id, sort_order: i }))
+    await Promise.all(
+      newCards.map((card, i) =>
+        supabase.from('cards').update({ sort_order: i }).eq('id', card.id)
+      )
     )
   }, [])
 
