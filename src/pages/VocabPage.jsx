@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookA, Plus, Volume2, ChevronDown, ChevronUp, Trash2, CheckCircle2, Search, Loader2, ArrowUpDown, GripVertical, Check, Radio } from 'lucide-react'
+import { BookA, Plus, Volume2, ChevronDown, ChevronUp, Trash2, CheckCircle2, Search, Loader2, ArrowUpDown, GripVertical, Check, Radio, Shuffle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import { speak, stopSpeaking, speakWithCallback, getRate } from '../lib/tts'
@@ -8,6 +8,15 @@ import { translateToZH } from '../lib/translate'
 import { lookupWord } from '../lib/dictionary'
 import { useDragSort } from '../lib/useDragSort'
 import BroadcastBar from '../components/BroadcastBar'
+
+function shuffleArray(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
 
 export default function VocabPage() {
   const navigate = useNavigate()
@@ -20,6 +29,7 @@ export default function VocabPage() {
   const [revealedZh, setRevealedZh] = useState({})
   const [filter, setFilter] = useState('all') // all | learning | mastered
   const [reorderMode, setReorderMode] = useState(false)
+  const [isShuffled, setIsShuffled] = useState(false)
 
   // Broadcast state
   const [broadcasting, setBroadcasting] = useState(false)
@@ -30,6 +40,8 @@ export default function VocabPage() {
   const broadcastActiveRef = useRef(false)
   const cleanupRef = useRef(null)
   const gapTimerRef = useRef(null)
+  // Snapshot of word order for the current broadcast session
+  const broadcastWordsRef = useRef([])
 
   // Cleanup on unmount
   useEffect(() => () => stopBroadcast(), [])
@@ -116,6 +128,8 @@ export default function VocabPage() {
 
   function startBroadcast() {
     stopSpeaking()
+    // Snapshot word order for this session (shuffled or sorted)
+    broadcastWordsRef.current = isShuffled ? shuffleArray(words) : [...words]
     setBroadcasting(true)
     setBroadcastPaused(false)
     setBroadcastLoop(0)
@@ -151,8 +165,11 @@ export default function VocabPage() {
   function broadcastStep(idx, phase, loopCount) {
     if (!broadcastActiveRef.current) return
 
-    // End of list — loop back
-    if (idx >= words.length) {
+    const list = broadcastWordsRef.current
+
+    // End of list — re-snapshot if shuffled then loop
+    if (idx >= list.length) {
+      if (isShuffled) broadcastWordsRef.current = shuffleArray(words)
       const nextLoop = loopCount + 1
       setBroadcastLoop(nextLoop)
       gapTimerRef.current = setTimeout(() => {
@@ -162,7 +179,7 @@ export default function VocabPage() {
       return
     }
 
-    const w = words[idx]
+    const w = list[idx]
     setBroadcastIndex(idx)
     setBroadcastPhase(phase)
 
@@ -216,17 +233,30 @@ export default function VocabPage() {
             </button>
           )}
           {!reorderMode && words.length > 0 && (
-            <button
-              onClick={() => (broadcasting ? stopBroadcast() : startBroadcast())}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-chinese rounded-xl press-scale transition-colors ${
-                broadcasting
-                  ? 'bg-accent text-white'
-                  : 'bg-surface border border-cream-dark/60 text-ink-light'
-              }`}
-            >
-              <Radio size={14} />
-              廣播
-            </button>
+            <>
+              <button
+                onClick={() => { if (!broadcasting) setIsShuffled(!isShuffled) }}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-sm font-chinese press-scale transition-colors ${
+                  isShuffled
+                    ? 'bg-accent text-white'
+                    : 'bg-surface border border-cream-dark/60 text-ink-light'
+                }`}
+              >
+                <Shuffle size={14} />
+                隨機
+              </button>
+              <button
+                onClick={() => (broadcasting ? stopBroadcast() : startBroadcast())}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-chinese rounded-xl press-scale transition-colors ${
+                  broadcasting
+                    ? 'bg-accent text-white'
+                    : 'bg-surface border border-cream-dark/60 text-ink-light'
+                }`}
+              >
+                <Radio size={14} />
+                廣播
+              </button>
+            </>
           )}
           {!reorderMode && !broadcasting && (
             <button
