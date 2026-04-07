@@ -11,26 +11,34 @@ export function setRate(rate) {
   localStorage.setItem('tts-rate', String(rate))
 }
 
+// Known female voice name patterns across iOS, Android, Windows, macOS
+const FEMALE_VOICE_RE = /female|woman|girl|kate|serena|amy|emma|susan|stephanie|claire|alice|victoria|hazel|fiona|moira|tessa|veena|zira|helen|linda|samantha|karen|catherine|lisa|laura|sarah|eva|anna|julia|marie|sophie|olivia|charlotte/i
+
+// Known male voice names to exclude when picking female fallback
+const MALE_VOICE_RE = /male|man|boy|daniel|david|george|james|tom|oliver|aaron|fred|alex|lee|mark|paul|richard|arthur|rishi/i
+
 /**
- * Pick the best female British English voice available.
- * Priority: en-GB female → en-GB any → en female → en any
+ * Pick the best female English voice available.
+ * Priority: en-GB female → any-en female → en-GB non-male → en any
  */
 function getBritishFemaleVoice() {
   const voices = window.speechSynthesis.getVoices()
-  // en-GB female
+  // 1. en-GB female by name
   const gbFemale = voices.find(
-    (v) => v.lang === 'en-GB' && v.name.match(/female|woman|girl|kate|serena|amy|emma|susan|stephanie|claire|alice|victoria/i)
+    (v) => v.lang === 'en-GB' && FEMALE_VOICE_RE.test(v.name)
   )
   if (gbFemale) return gbFemale
-  // en-GB any
-  const gb = voices.find((v) => v.lang === 'en-GB')
-  if (gb) return gb
-  // en female
+  // 2. any English female by name (covers Samantha en-US, Google US English Female, etc.)
   const enFemale = voices.find(
-    (v) => v.lang.startsWith('en') && v.name.match(/female|woman|girl|kate|serena|amy|emma|susan|stephanie|claire|alice|victoria/i)
+    (v) => v.lang.startsWith('en') && FEMALE_VOICE_RE.test(v.name)
   )
   if (enFemale) return enFemale
-  // en any
+  // 3. en-GB that doesn't look male (avoids Daniel on iOS)
+  const gbNonMale = voices.find(
+    (v) => v.lang === 'en-GB' && !MALE_VOICE_RE.test(v.name)
+  )
+  if (gbNonMale) return gbNonMale
+  // 4. any English voice as last resort
   return voices.find((v) => v.lang.startsWith('en')) || null
 }
 
