@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import { getSetting } from '../lib/settings'
 import { speak, stopSpeaking, speakWithCallback, getRate } from '../lib/tts'
+import { startSilentAudio, setupMediaSession, setMediaPlaying, clearMediaSession } from '../lib/mediaSession'
 import SpeakButton from '../components/SpeakButton'
 import WordTapOverlay from '../components/WordTapOverlay'
 import BroadcastBar from '../components/BroadcastBar'
@@ -114,6 +115,13 @@ export default function PracticePage() {
 
   function startBroadcast() {
     stopSpeaking()
+    startSilentAudio()
+    setupMediaSession({
+      title: 'B1 練習廣播',
+      onPlay: () => toggleBroadcastPause(),
+      onPause: () => toggleBroadcastPause(),
+      onStop: () => stopBroadcast(),
+    })
     setBroadcasting(true)
     setBroadcastPaused(false)
     setBroadcastLoop(0)
@@ -122,6 +130,7 @@ export default function PracticePage() {
     setCurrentIndex(0)
     setShowAnswer(false)
     broadcastActiveRef.current = true
+    setMediaPlaying(true)
     broadcastStep(0, 'question', 0)
   }
 
@@ -130,6 +139,7 @@ export default function PracticePage() {
     stopSpeaking()
     clearTimeout(gapTimerRef.current)
     if (cleanupRef.current) cleanupRef.current()
+    clearMediaSession()
     setBroadcasting(false)
     setBroadcastPaused(false)
   }
@@ -139,6 +149,7 @@ export default function PracticePage() {
       // Resume
       setBroadcastPaused(false)
       broadcastActiveRef.current = true
+      setMediaPlaying(true)
       broadcastStep(broadcastIndex, broadcastPhase, broadcastLoop)
     } else {
       // Pause
@@ -146,6 +157,7 @@ export default function PracticePage() {
       stopSpeaking()
       clearTimeout(gapTimerRef.current)
       if (cleanupRef.current) cleanupRef.current()
+      setMediaPlaying(false)
       setBroadcastPaused(true)
     }
   }

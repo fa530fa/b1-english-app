@@ -4,6 +4,7 @@ import { ChevronLeft, Printer, Plus, ArrowUpDown, GripVertical, Check, Radio, Sh
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import { stopSpeaking, speakWithCallback, getRate } from '../lib/tts'
+import { startSilentAudio, setupMediaSession, setMediaPlaying, clearMediaSession } from '../lib/mediaSession'
 import QACard from '../components/QACard'
 import LoadingSpinner from '../components/LoadingSpinner'
 import BroadcastBar from '../components/BroadcastBar'
@@ -93,6 +94,13 @@ export default function CategoryPage() {
 
   function startBroadcast() {
     stopSpeaking()
+    startSilentAudio()
+    setupMediaSession({
+      title: title || 'B1 廣播',
+      onPlay: () => toggleBroadcastPause(),
+      onPause: () => toggleBroadcastPause(),
+      onStop: () => stopBroadcast(),
+    })
     broadcastCardsRef.current = isShuffled ? shuffleArray(cards) : [...cards]
     setBroadcasting(true)
     setBroadcastPaused(false)
@@ -101,6 +109,7 @@ export default function CategoryPage() {
     setBroadcastPhase('question')
     setShowAnswer(false)
     broadcastActiveRef.current = true
+    setMediaPlaying(true)
     broadcastStep(0, 'question', 0)
   }
 
@@ -109,6 +118,7 @@ export default function CategoryPage() {
     stopSpeaking()
     clearTimeout(gapTimerRef.current)
     if (cleanupRef.current) cleanupRef.current()
+    clearMediaSession()
     setBroadcasting(false)
     setBroadcastPaused(false)
     setShowAnswer(false)
@@ -118,12 +128,14 @@ export default function CategoryPage() {
     if (broadcastPaused) {
       setBroadcastPaused(false)
       broadcastActiveRef.current = true
+      setMediaPlaying(true)
       broadcastStep(broadcastIndex, broadcastPhase, broadcastLoop)
     } else {
       broadcastActiveRef.current = false
       stopSpeaking()
       clearTimeout(gapTimerRef.current)
       if (cleanupRef.current) cleanupRef.current()
+      setMediaPlaying(false)
       setBroadcastPaused(true)
     }
   }

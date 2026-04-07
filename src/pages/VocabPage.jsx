@@ -4,6 +4,7 @@ import { BookA, Plus, Volume2, ChevronDown, ChevronUp, Trash2, CheckCircle2, Sea
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/profile'
 import { speak, stopSpeaking, speakWithCallback, getRate } from '../lib/tts'
+import { startSilentAudio, setupMediaSession, setMediaPlaying, clearMediaSession } from '../lib/mediaSession'
 import { translateToZH } from '../lib/translate'
 import { lookupWord } from '../lib/dictionary'
 import { useDragSort } from '../lib/useDragSort'
@@ -128,6 +129,13 @@ export default function VocabPage() {
 
   function startBroadcast() {
     stopSpeaking()
+    startSilentAudio()
+    setupMediaSession({
+      title: '生字廣播',
+      onPlay: () => toggleBroadcastPause(),
+      onPause: () => toggleBroadcastPause(),
+      onStop: () => stopBroadcast(),
+    })
     // Snapshot word order for this session (shuffled or sorted)
     broadcastWordsRef.current = isShuffled ? shuffleArray(words) : [...words]
     setBroadcasting(true)
@@ -136,6 +144,7 @@ export default function VocabPage() {
     setBroadcastIndex(0)
     setBroadcastPhase('word')
     broadcastActiveRef.current = true
+    setMediaPlaying(true)
     broadcastStep(0, 'word', 0)
   }
 
@@ -144,6 +153,7 @@ export default function VocabPage() {
     stopSpeaking()
     clearTimeout(gapTimerRef.current)
     if (cleanupRef.current) cleanupRef.current()
+    clearMediaSession()
     setBroadcasting(false)
     setBroadcastPaused(false)
   }
@@ -152,12 +162,14 @@ export default function VocabPage() {
     if (broadcastPaused) {
       setBroadcastPaused(false)
       broadcastActiveRef.current = true
+      setMediaPlaying(true)
       broadcastStep(broadcastIndex, broadcastPhase, broadcastLoop)
     } else {
       broadcastActiveRef.current = false
       stopSpeaking()
       clearTimeout(gapTimerRef.current)
       if (cleanupRef.current) cleanupRef.current()
+      setMediaPlaying(false)
       setBroadcastPaused(true)
     }
   }
