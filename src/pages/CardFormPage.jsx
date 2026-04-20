@@ -33,6 +33,7 @@ export default function CardFormPage() {
     const { data: cats } = await supabase
       .from('categories')
       .select('*')
+      .eq('profile', getProfile())
       .order('sort_order', { ascending: true })
     setCategories(cats || [])
 
